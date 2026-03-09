@@ -21,6 +21,11 @@ import type {
   ColorThreshold,
 } from "./types";
 import { rgbToHex, parseColorInput, type RGBTuple } from "./color-utils";
+import {
+  resolveSelectedValue,
+  buildSelectOptions,
+  buildSelectOptionsWithEmpty,
+} from "./select-compat";
 
 // Type declaration for Intl.supportedValuesOf (ES2022+)
 declare global {
@@ -1184,12 +1189,12 @@ export class GeekMagicPanel extends LitElement {
           <ha-select
             label="Theme"
             .value=${this._editingView.theme}
-            .options=${Object.entries(this._config!.themes).map(
-              ([key, name]) => ({ value: key, label: name as string })
-            )}
+            .options=${buildSelectOptions(this._config!.themes)}
             @selected=${(e: CustomEvent) => {
-              const keys = Object.keys(this._config!.themes);
-              const value = (e.detail.value as string) ?? keys[e.detail.index as number];
+              const value = resolveSelectedValue(
+                e.detail,
+                Object.keys(this._config!.themes)
+              );
               if (value) this._updateEditingView({ theme: value });
             }}
             @closed=${(e: Event) => e.stopPropagation()}
@@ -1233,15 +1238,17 @@ export class GeekMagicPanel extends LitElement {
             <ha-select
               label="Widget Type"
               .value=${widgetType}
-              .options=${[
-                { value: "", label: "-- Empty --" },
-                ...Object.entries(this._config!.widget_types).map(
-                  ([key, info]) => ({ value: key, label: info.name })
-                ),
-              ]}
+              .options=${buildSelectOptionsWithEmpty(
+                "-- Empty --",
+                Object.fromEntries(
+                  Object.entries(this._config!.widget_types).map(
+                    ([key, info]) => [key, info.name]
+                  )
+                )
+              )}
               @selected=${(e: CustomEvent) => {
                 const keys = ["", ...Object.keys(this._config!.widget_types)];
-                const value = (e.detail.value as string) ?? keys[e.detail.index as number] ?? "";
+                const value = resolveSelectedValue(e.detail, keys) ?? "";
                 this._updateWidget(slot, { type: value });
               }}
               @closed=${(e: Event) => e.stopPropagation()}
@@ -1333,7 +1340,10 @@ export class GeekMagicPanel extends LitElement {
               .value=${value || opt.default || ""}
               .options=${opt.options || []}
               @selected=${(e: CustomEvent) => {
-                const selected = (e.detail.value as string) ?? opt.options?.[e.detail.index as number];
+                const selected = resolveSelectedValue(
+                  e.detail,
+                  opt.options || []
+                );
                 if (selected !== undefined) {
                   this._updateWidgetOption(slot, opt.key, selected);
                 }
